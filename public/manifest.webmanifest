@@ -1,0 +1,11 @@
+{
+  "name": "FleetLine",
+  "short_name": "FleetLine",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f6f0e1",
+  "theme_color": "#13213c",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
