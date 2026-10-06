@@ -33,7 +33,7 @@ function weekLabel(iso) {
 
 async function loadOverview() {
   const firstWeek = shiftWeeks(weekStart(todayAccra()), -(WEEKS_SHOWN - 1));
-  const [payments, drivers, cars] = await Promise.all([
+  const [payments, drivers, cars, papers] = await Promise.all([
     must(
       supabase
         .from("payments")
@@ -43,6 +43,7 @@ async function loadOverview() {
     ),
     must(supabase.from("admin_driver_overview").select("*")),
     must(supabase.from("vehicle_finance").select("*").order("make_model")),
+    must(supabase.from("document_status").select("title, expiry_status").in("expiry_status", ["expired", "expiring"])),
   ]);
 
   const buckets = new Map();
@@ -62,6 +63,7 @@ async function loadOverview() {
     })),
     drivers,
     cars,
+    papers,
   };
 }
 
@@ -72,7 +74,7 @@ export default function OverviewTab({ demo }) {
   if (error && !data) return <Notice tone="red">{error}</Notice>;
   if (!data) return <Loading />;
 
-  const { weekly, drivers, cars } = data;
+  const { weekly, drivers, cars, papers = [] } = data;
   const active = drivers.filter((d) => d.agreement_status === "active");
   const thisWeek = weekly[weekly.length - 1]?.value ?? 0;
   const lastWeek = weekly[weekly.length - 2]?.value ?? 0;
@@ -113,6 +115,8 @@ export default function OverviewTab({ demo }) {
               note={behind.length ? behind.map((d) => d.name).join(", ") : "Everyone on track"} />
         <Tile label="To approve" value={pending} alert={pending > 0}
               note={pending ? "Waiting for you" : "Nothing waiting"} />
+        <Tile label="Papers to renew" value={papers.length} alert={papers.length > 0}
+              note={papers.length ? papers.map((p) => p.title).join(", ") : "Insurance and roadworthy valid"} />
         <Tile label="Service overdue" value={overdue.length} alert={overdue.length > 0}
               note={overdue.length ? overdue.map((d) => d.make_model).join(", ") : "All up to date"} />
       </div>

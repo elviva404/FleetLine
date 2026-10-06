@@ -14,6 +14,7 @@ const demoOverview = {
     { driver_id: "2", name: "Ama Boateng", agreement_status: "active", remaining: 41000, schedule_diff: 1500, pending_count: 0, overdue_services: 0, make_model: "Kia Picanto" },
     { driver_id: "3", name: "Yaw Darko", agreement_status: "terminated", remaining: 12000, schedule_diff: -4000, pending_count: 0, overdue_services: 0, make_model: "Honda Fit" },
   ],
+  papers: [{ title: "Insurance 2026 (Toyota Vitz)", expiry_status: "expiring" }],
   cars: [
     { vehicle_id: "a", make_model: "Toyota Vitz", plate: "GR 4821-24", collected: 21500, cost_basis: 51150, net_position: -29650, remaining_to_break_even: 29650 },
     { vehicle_id: "b", make_model: "Kia Picanto", plate: "GR 1120-23", collected: 48000, cost_basis: 40000, net_position: 8000, remaining_to_break_even: 0 },

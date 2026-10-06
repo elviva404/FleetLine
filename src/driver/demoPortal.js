@@ -27,6 +27,11 @@ export const demoPortal = {
   ],
   adjustments: [{ id: "j1", amount: 500, date: "2026-08-30", reason: "Cash paid in person" }],
   extras: [{ id: "e1", amount: 1200, date: "2026-07-14", description: "Front bumper repair" }],
+  documents: [
+    { id: "d1", kind: "agreement", title: "Signed work and pay agreement", file_path: "demo/agreement.pdf", mime_type: "application/pdf", expires_on: null, expiry_status: "none" },
+    { id: "d2", kind: "insurance", title: "Insurance 2026", file_path: "demo/insurance.pdf", mime_type: "application/pdf", expires_on: "2026-10-20", expiry_status: "expiring" },
+    { id: "d3", kind: "roadworthy", title: "Roadworthy", file_path: "demo/rw.pdf", mime_type: "application/pdf", expires_on: "2027-03-01", expiry_status: "valid" },
+  ],
   maintenance: [
     { service: "Oil change", interval_days: 30, last_performed_on: "2026-08-10", next_due_on: "2026-09-09", status: "overdue" },
     { service: "Tyre check", interval_days: 90, last_performed_on: "2026-07-01", next_due_on: "2026-09-29", status: "ok" },

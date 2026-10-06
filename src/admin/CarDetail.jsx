@@ -3,7 +3,8 @@ import { SERVICE_STATUS, formatDate, formatMoney } from "../lib/format.js";
 import { supabase } from "../lib/supabase.js";
 import { must, useLoad } from "../lib/useLoad.js";
 import { BackButton, Badge, Button, Card, Empty, Loading, Money, Notice } from "../ui.jsx";
-import { IntervalSheet, MaintenanceSheet, VehicleCostSheet, VehicleFormSheet } from "./forms.jsx";
+import { DocumentRow } from "../components/DocumentList.jsx";
+import { DeleteDocumentButton, DocumentSheet, IntervalSheet, MaintenanceSheet, VehicleCostSheet, VehicleFormSheet } from "./forms.jsx";
 
 const COST_LABELS = {
   insurance: "Insurance",
@@ -14,7 +15,7 @@ const COST_LABELS = {
 };
 
 async function loadCar(vehicleId) {
-  const [vehicle, services, logs, costs, finance, serviceTypes, agreements] = await Promise.all([
+  const [vehicle, services, logs, costs, finance, serviceTypes, agreements, documents] = await Promise.all([
     must(supabase.from("vehicles").select("*").eq("id", vehicleId).single()),
     must(supabase.from("vehicle_service_status").select("*").eq("vehicle_id", vehicleId).order("service_name")),
     must(
@@ -34,8 +35,15 @@ async function loadCar(vehicleId) {
         .eq("vehicle_id", vehicleId)
         .order("start_date", { ascending: false })
     ),
+    must(
+      supabase
+        .from("document_status")
+        .select("*")
+        .eq("vehicle_id", vehicleId)
+        .order("expires_on", { ascending: true, nullsFirst: false })
+    ),
   ]);
-  return { vehicle, services, logs, costs, finance, serviceTypes, agreements };
+  return { vehicle, services, logs, costs, finance, serviceTypes, agreements, documents };
 }
 
 export default function CarDetail({ vehicleId, onBack }) {
@@ -45,7 +53,7 @@ export default function CarDetail({ vehicleId, onBack }) {
   if (error && !data) return <Notice tone="red">{error}</Notice>;
   if (!data) return <Loading />;
 
-  const { vehicle, services, logs, costs, finance, serviceTypes, agreements } = data;
+  const { vehicle, services, logs, costs, finance, serviceTypes, agreements, documents } = data;
   const current = agreements.find((a) => a.status === "active") ?? agreements[0] ?? null;
   const close = () => setSheet(null);
   const refresh = () => {
@@ -80,6 +88,29 @@ export default function CarDetail({ vehicleId, onBack }) {
       </Card>
 
       {finance && <FinanceCard finance={finance} />}
+
+      <Card
+        title="Papers"
+        aside={
+          <Button className="btn-sm" variant="ghost" onClick={() => setSheet({ kind: "document" })}>
+            + Add paper
+          </Button>
+        }
+      >
+        {documents.length === 0 ? (
+          <Empty>No insurance or roadworthy uploaded for this car.</Empty>
+        ) : (
+          <ul className="ledger">
+            {documents.map((doc) => (
+              <DocumentRow
+                key={doc.id}
+                document={doc}
+                action={<DeleteDocumentButton document={doc} onDeleted={reload} />}
+              />
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <Card
         title="Maintenance"
@@ -183,6 +214,9 @@ export default function CarDetail({ vehicleId, onBack }) {
         <MaintenanceSheet vehicle={vehicle} serviceTypes={serviceTypes} onClose={close} onSaved={refresh} />
       )}
       {sheet?.kind === "cost" && <VehicleCostSheet vehicle={vehicle} onClose={close} onSaved={refresh} />}
+      {sheet?.kind === "document" && (
+        <DocumentSheet vehicle={vehicle} onClose={close} onSaved={refresh} />
+      )}
       {sheet?.kind === "interval" && (
         <IntervalSheet vehicle={vehicle} service={sheet.service} onClose={close} onSaved={refresh} />
       )}

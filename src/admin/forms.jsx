@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { formatMoney, todayAccra } from "../lib/format.js";
+import { DOCUMENT_KINDS, deleteDocumentFile, uploadDocument } from "../lib/documents.js";
 import { deleteScreenshots } from "../lib/storage.js";
 import { errorMessage, supabase } from "../lib/supabase.js";
 import { must, useLoad } from "../lib/useLoad.js";
@@ -619,5 +620,122 @@ export function ServiceTypeSheet({ serviceType, onClose, onSaved }) {
         )}
       </form>
     </Sheet>
+  );
+}
+
+const EXPIRING_KINDS = ["insurance", "roadworthy"];
+
+// Uploading a signed agreement (to a driver) or car papers (to a car).
+export function DocumentSheet({ driver, vehicle, agreementId, onClose, onSaved }) {
+  const kinds = driver ? ["agreement", "other"] : ["insurance", "roadworthy", "other"];
+  const [kind, setKind] = useState(kinds[0]);
+  const [title, setTitle] = useState("");
+  const [file, setFile] = useState(null);
+  const [issuedOn, setIssuedOn] = useState("");
+  const [expiresOn, setExpiresOn] = useState("");
+  const [note, setNote] = useState("");
+
+  const { busy, error, handleSubmit } = useSubmit(async () => {
+    if (!file) throw new Error("Choose a file to upload.");
+    if (file.size > 10 * 1024 * 1024) throw new Error("That file is bigger than 10 MB.");
+
+    // The row is created first so the database generates the secret folder name.
+    const row = await must(
+      supabase
+        .from("documents")
+        .insert({
+          kind,
+          driver_id: driver?.id ?? null,
+          vehicle_id: vehicle?.id ?? null,
+          agreement_id: agreementId ?? null,
+          title: title.trim() || DOCUMENT_KINDS[kind],
+          file_path: "pending",
+          mime_type: file.type || null,
+          size_bytes: file.size,
+          issued_on: issuedOn || null,
+          expires_on: expiresOn || null,
+          note: note.trim() || null,
+        })
+        .select()
+        .single()
+    );
+
+    try {
+      const path = await uploadDocument(row.access_key, file);
+      await must(supabase.from("documents").update({ file_path: path }).eq("id", row.id));
+    } catch (uploadError) {
+      await supabase.from("documents").delete().eq("id", row.id);
+      throw uploadError;
+    }
+    onSaved?.();
+  }, onClose);
+
+  return (
+    <Sheet title={driver ? `Add paper for ${driver.name}` : "Add car paper"} onClose={onClose}>
+      <form className="form" onSubmit={handleSubmit}>
+        <Field label="What is it">
+          <select className="input" value={kind} onChange={(e) => setKind(e.target.value)}>
+            {kinds.map((k) => (
+              <option key={k} value={k}>
+                {DOCUMENT_KINDS[k]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="File" hint="PDF or photo, up to 10 MB.">
+          <label className="file-button">
+            <input type="file" accept="application/pdf,image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            {file ? file.name : "📄 Choose file"}
+          </label>
+        </Field>
+        <Field label="Title" hint="Leave blank to use the type above.">
+          <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={DOCUMENT_KINDS[kind]} />
+        </Field>
+        <div className="form-grid">
+          <Field label="Issued on (optional)">
+            <input className="input" type="date" value={issuedOn} onChange={(e) => setIssuedOn(e.target.value)} />
+          </Field>
+          <Field
+            label={EXPIRING_KINDS.includes(kind) ? "Expires on" : "Expires on (optional)"}
+            hint={EXPIRING_KINDS.includes(kind) ? "You'll be warned before this date." : undefined}
+          >
+            <input
+              className="input"
+              type="date"
+              required={EXPIRING_KINDS.includes(kind)}
+              value={expiresOn}
+              onChange={(e) => setExpiresOn(e.target.value)}
+            />
+          </Field>
+        </div>
+        <Field label="Note (optional)">
+          <input className="input" value={note} onChange={(e) => setNote(e.target.value)} />
+        </Field>
+        <Footer busy={busy} error={error} label="Upload" />
+      </form>
+    </Sheet>
+  );
+}
+
+export function DeleteDocumentButton({ document: doc, onDeleted }) {
+  const [busy, setBusy] = useState(false);
+
+  async function handleDelete() {
+    if (!window.confirm(`Delete "${doc.title}"? This cannot be undone.`)) return;
+    setBusy(true);
+    const { error } = await supabase.from("documents").delete().eq("id", doc.id);
+    if (!error) await deleteDocumentFile(doc.file_path);
+    setBusy(false);
+    if (error) {
+      window.alert(errorMessage(error));
+      return;
+    }
+    onDeleted?.();
+  }
+
+  return (
+    <Button type="button" variant="danger" className="btn-sm" disabled={busy} onClick={handleDelete}>
+      {busy ? "Deleting…" : "Delete"}
+    </Button>
   );
 }

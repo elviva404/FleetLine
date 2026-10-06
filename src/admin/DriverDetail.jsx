@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DocumentRow } from "../components/DocumentList.jsx";
 import { ExtrasList, PaymentHistory } from "../components/Ledger.jsx";
 import OwnershipCard from "../components/OwnershipCard.jsx";
 import PaymentForm from "../components/PaymentForm.jsx";
@@ -10,7 +11,9 @@ import { BackButton, Badge, Button, Card, Empty, Loading, Notice, Sheet } from "
 import {
   AdjustmentSheet,
   AgreementPriceSheet,
+  DeleteDocumentButton,
   DeleteDriverSheet,
+  DocumentSheet,
   DriverFormSheet,
   ExtraSheet,
   RejectSheet,
@@ -19,8 +22,9 @@ import {
 } from "./forms.jsx";
 
 async function loadDriver(driverId, agreementId) {
-  const [driver, agreements] = await Promise.all([
+  const [driver, documents, agreements] = await Promise.all([
     must(supabase.from("drivers").select("*").eq("id", driverId).single()),
+    must(supabase.from("document_status").select("*").eq("driver_id", driverId).order("created_at", { ascending: false })),
     must(
       supabase
         .from("agreement_summary")
@@ -35,7 +39,7 @@ async function loadDriver(driverId, agreementId) {
     agreements[0] ??
     null;
 
-  if (!current) return { driver, agreements, current: null, payments: [], extras: [], adjustments: [], vehicle: null };
+  if (!current) return { driver, documents, agreements, current: null, payments: [], extras: [], adjustments: [], vehicle: null };
 
   const [payments, extras, adjustments, vehicle] = await Promise.all([
     must(
@@ -50,7 +54,7 @@ async function loadDriver(driverId, agreementId) {
     must(supabase.from("adjustments").select("*").eq("agreement_id", current.agreement_id).order("date", { ascending: false })),
     must(supabase.from("vehicles").select("*").eq("id", current.vehicle_id).single()),
   ]);
-  return { driver, agreements, current, payments, extras, adjustments, vehicle };
+  return { driver, documents, agreements, current, payments, extras, adjustments, vehicle };
 }
 
 function whatsappNumber(phone) {
@@ -70,7 +74,7 @@ export default function DriverDetail({ driverId, onBack, onChanged }) {
   if (error && !data) return <Notice tone="red">{error}</Notice>;
   if (!data) return <Loading />;
 
-  const { driver, agreements, current, payments, extras, adjustments, vehicle } = data;
+  const { driver, documents, agreements, current, payments, extras, adjustments, vehicle } = data;
   const active = current?.status === "active";
   const link = driverLink(driver.access_token);
   const wa = whatsappNumber(driver.phone);
@@ -241,6 +245,29 @@ export default function DriverDetail({ driverId, onBack, onChanged }) {
         </>
       )}
 
+      <Card
+        title="Papers"
+        aside={
+          <Button className="btn-sm" variant="ghost" onClick={() => setSheet({ kind: "document" })}>
+            + Add paper
+          </Button>
+        }
+      >
+        {documents.length === 0 ? (
+          <Empty>No signed agreement uploaded.</Empty>
+        ) : (
+          <ul className="ledger">
+            {documents.map((doc) => (
+              <DocumentRow
+                key={doc.id}
+                document={doc}
+                action={<DeleteDocumentButton document={doc} onDeleted={reload} />}
+              />
+            ))}
+          </ul>
+        )}
+      </Card>
+
       <Card title="Danger zone">
         <div className="stack">
           <p className="muted small">
@@ -299,6 +326,14 @@ export default function DriverDetail({ driverId, onBack, onChanged }) {
       {sheet?.kind === "reject" && <RejectSheet payment={sheet.payload} onClose={close} onSaved={() => refresh("Payment rejected.")} />}
       {sheet?.kind === "price" && (
         <AgreementPriceSheet agreement={current} onClose={close} onSaved={() => refresh("Price updated.")} />
+      )}
+      {sheet?.kind === "document" && (
+        <DocumentSheet
+          driver={driver}
+          agreementId={current?.agreement_id}
+          onClose={close}
+          onSaved={() => refresh("Paper uploaded.")}
+        />
       )}
       {sheet?.kind === "deleteDriver" && (
         <DeleteDriverSheet driver={driver} onClose={close} onDeleted={onBack} />

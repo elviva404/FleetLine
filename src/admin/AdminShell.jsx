@@ -6,6 +6,7 @@ import CarsTab from "./CarsTab.jsx";
 import DriversTab from "./DriversTab.jsx";
 import FinanceTab from "./FinanceTab.jsx";
 import OverviewTab from "./OverviewTab.jsx";
+import PapersTab from "./PapersTab.jsx";
 import SettingsTab from "./SettingsTab.jsx";
 
 const TABS = [
@@ -13,6 +14,7 @@ const TABS = [
   { id: "drivers", label: "Drivers" },
   { id: "approvals", label: "Approvals" },
   { id: "cars", label: "Cars" },
+  { id: "papers", label: "Papers" },
   { id: "finance", label: "Finance" },
   { id: "settings", label: "Settings" },
 ];
@@ -56,6 +58,7 @@ export default function AdminShell({ session }) {
         {tab === "drivers" && <DriversTab onChanged={refreshCount} />}
         {tab === "approvals" && <ApprovalsTab onChanged={refreshCount} />}
         {tab === "cars" && <CarsTab />}
+        {tab === "papers" && <PapersTab />}
         {tab === "finance" && <FinanceTab />}
         {tab === "settings" && <SettingsTab />}
       </Page>

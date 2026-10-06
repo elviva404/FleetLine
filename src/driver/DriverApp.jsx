@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DocumentsCard } from "../components/DocumentList.jsx";
 import { ExtrasList, MaintenanceList, PaymentHistory } from "../components/Ledger.jsx";
 import OwnershipCard from "../components/OwnershipCard.jsx";
 import PaymentForm from "../components/PaymentForm.jsx";
@@ -138,6 +139,9 @@ export default function DriverApp({ token }) {
         )}
         {portal.extras.length > 0 && <ExtrasList extras={portal.extras} title="Added to your total" />}
         {portal.maintenance.length > 0 && <MaintenanceList services={portal.maintenance} />}
+        {portal.documents?.length > 0 && (
+          <DocumentsCard documents={portal.documents} title="Your papers" />
+        )}
       </Page>
 
       {editing && (
