@@ -6,3 +6,4 @@ dist
 # Local AI assistant settings
 .claude/
 CLAUDE.md
+public/dev-samples/

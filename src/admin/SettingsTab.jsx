@@ -10,12 +10,17 @@ export default function SettingsTab() {
   useEffect(() => {
     supabase
       .from("settings")
-      .select("weekly_installment, due_soon_days")
+      .select("weekly_installment, due_soon_days, momo_accounts")
       .eq("id", 1)
       .single()
       .then(({ data, error }) => {
         if (error) setStatus({ tone: "red", text: errorMessage(error) });
-        else setForm({ weekly_installment: String(data.weekly_installment), due_soon_days: String(data.due_soon_days) });
+        else
+          setForm({
+            weekly_installment: String(data.weekly_installment),
+            due_soon_days: String(data.due_soon_days),
+            momo_accounts: (data.momo_accounts ?? []).join("\n"),
+          });
       });
   }, []);
 
@@ -28,6 +33,10 @@ export default function SettingsTab() {
       .update({
         weekly_installment: Number(form.weekly_installment),
         due_soon_days: Number(form.due_soon_days),
+        momo_accounts: form.momo_accounts
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean),
       })
       .eq("id", 1);
     setSaving(false);
@@ -61,6 +70,18 @@ export default function SettingsTab() {
             required
             value={form.due_soon_days}
             onChange={(e) => setForm({ ...form, due_soon_days: e.target.value })}
+          />
+        </Field>
+        <Field
+          label="Your MoMo accounts"
+          hint="One per line: the name that appears on drivers' confirmations, and your MoMo number(s). Used to flag payments sent to someone else."
+        >
+          <textarea
+            className="input"
+            rows={3}
+            placeholder={"Elikem Savie\n0249409007"}
+            value={form.momo_accounts}
+            onChange={(e) => setForm({ ...form, momo_accounts: e.target.value })}
           />
         </Field>
         {status.text && <Notice tone={status.tone}>{status.text}</Notice>}

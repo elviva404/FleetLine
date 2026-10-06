@@ -120,16 +120,31 @@ function findTransactionId(text) {
 function findReference(text) {
   const match = text.match(/Reference\s*[:\-]?\s*(.+?)(?=\s*(?:\.\s|Transaction\s*ID|Fee\s|TRANSACTION\s*FEE|$))/i);
   if (!match) return null;
-  const value = match[1].trim().replace(/[.,;]+$/, "");
+  const value = match[1].trim().replace(/[\s.,;'’‘`"|!]+$/, "");
   return value.length ? value.slice(0, 120) : null;
+}
+
+// OCR turns capital I into ! or |, and NII into Nil. Names are compared loosely.
+function tidyName(name) {
+  return name.replace(/[!|]/g, "I").replace(/\s{2,}/g, " ").replace(/[.,;:\-]+$/, "").trim();
+}
+
+export function normaliseName(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/[1!|l]/g, "i")
+    .replace(/0/g, "o")
+    .replace(/[^a-z ]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function findCounterparty(text) {
   const match = text.match(
-    /(?:Payment\s+made\s+for|Payment\s+received\s+for|Cash\s*In\s+received\s+for|You\s+have\s+sent|Transfer\s+of)\s+[^\n]{0,24}?\s(?:to|from)\s+([A-Za-z+0-9][A-Za-z'’\-+ 0-9]{2,60}?)(?=\s*(?:Current\s*Balance|Available\s*Balance|\bon\b|[.,]|$))/i
+    /(?:Payment\s+made\s+for|Payment\s+received\s+for|Cash\s*In\s+received\s+for|You\s+have\s+sent|Transfer\s+of)\s+[^\n]{0,24}?\s(?:to|from)\s+([A-Za-z+0-9][A-Za-z'’\-+ 0-9!|]{2,60}?)(?=\s*(?:Current\s*Balance|Available\s*Balance|\bon\b|[.,]|$))/i
   );
   if (!match) return null;
-  return match[1].trim().replace(/\s{2,}/g, " ");
+  return tidyName(match[1]);
 }
 
 function findPhones(text) {
@@ -209,12 +224,46 @@ export function checkReceiver(transaction, ownerAccounts = []) {
   if (!accounts.length || !transaction) return "unknown";
   if (transaction.direction === "received") return "unknown";
 
-  const names = accounts.filter((a) => /[A-Za-z]{2}/.test(a)).map((a) => a.toLowerCase());
+  const names = accounts.filter((a) => /[A-Za-z]{2}/.test(a)).map(normaliseName).filter(Boolean);
   const numbers = accounts.map(normalisePhone).filter((n) => n.length >= 9);
 
-  const party = (transaction.counterparty || "").toLowerCase();
+  const party = normaliseName(transaction.counterparty);
   if (party && names.some((name) => party.includes(name) || name.includes(party))) return "match";
   if (numbers.length && transaction.phones.some((p) => numbers.includes(p))) return "match";
   if (!party && !transaction.phones.length) return "unknown";
   return "mismatch";
+}
+
+// Compares what a driver typed with what was read from their screenshot.
+// Returns a list of plain-language warnings for the approvals screen.
+export function reviewPayment(payment, ownerAccounts = []) {
+  const warnings = [];
+  if (!payment.ocr_source) return warnings;
+
+  const typedAmount = Number(payment.amount);
+  const readAmount = payment.ocr_amount == null ? null : Number(payment.ocr_amount);
+  if (readAmount != null && Math.abs(readAmount - typedAmount) >= 0.01) {
+    warnings.push({
+      tone: "red",
+      text: `Screenshot says GH₵ ${readAmount.toFixed(2)}, driver entered GH₵ ${typedAmount.toFixed(2)}.`,
+    });
+  }
+
+  const typedRef = (payment.reference || "").trim();
+  const readRef = (payment.ocr_reference || "").trim();
+  if (readRef && typedRef && readRef !== typedRef) {
+    warnings.push({ tone: "red", text: `Screenshot's transaction ID is ${readRef}, driver entered ${typedRef}.` });
+  }
+
+  const verdict = checkReceiver(
+    { counterparty: payment.ocr_receiver, phones: [], direction: "sent" },
+    ownerAccounts
+  );
+  if (verdict === "mismatch") {
+    warnings.push({ tone: "red", text: `Paid to ${payment.ocr_receiver}, not one of your MoMo accounts.` });
+  } else if (verdict === "unknown" && ownerAccounts.length) {
+    warnings.push({ tone: "amber", text: "Couldn't tell who was paid from this screenshot." });
+  }
+
+  return warnings;
 }

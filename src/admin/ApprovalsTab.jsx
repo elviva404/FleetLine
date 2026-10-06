@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { formatDate, formatMoney } from "../lib/format.js";
 import { errorMessage, supabase } from "../lib/supabase.js";
+import { reviewPayment } from "../lib/momo.js";
 import { must, useLoad } from "../lib/useLoad.js";
 import { Button, Card, Empty, Loading, Money, Notice, Screenshot } from "../ui.jsx";
 import { RejectSheet } from "./forms.jsx";
 
 export default function ApprovalsTab({ onChanged }) {
-  const { data: pending, error, reload } = useLoad(
-    () =>
+  const { data, error, reload } = useLoad(async () => {
+    const [pending, settings] = await Promise.all([
       must(
         supabase
           .from("payments")
@@ -15,8 +16,10 @@ export default function ApprovalsTab({ onChanged }) {
           .eq("status", "pending")
           .order("created_at", { ascending: true })
       ),
-    []
-  );
+      must(supabase.from("settings").select("momo_accounts").eq("id", 1).single()),
+    ]);
+    return { pending, ownerAccounts: settings.momo_accounts ?? [] };
+  }, []);
   const [rejecting, setRejecting] = useState(null);
   const [flash, setFlash] = useState({ tone: "", text: "" });
 
@@ -39,8 +42,9 @@ export default function ApprovalsTab({ onChanged }) {
     refresh(`${formatMoney(payment.amount)} from ${payment.agreement.driver.name} approved.`);
   }
 
-  if (error && !pending) return <Notice tone="red">{error}</Notice>;
-  if (!pending) return <Loading />;
+  if (error && !data) return <Notice tone="red">{error}</Notice>;
+  if (!data) return <Loading />;
+  const { pending, ownerAccounts } = data;
 
   return (
     <>
@@ -64,7 +68,18 @@ export default function ApprovalsTab({ onChanged }) {
                       {p.reference ? ` · Ref ${p.reference}` : " · no transaction ID"}
                     </div>
                     {p.note && <div className="ledger-meta">“{p.note}”</div>}
+                    {p.ocr_source && (
+                      <div className="ledger-meta">
+                        {p.ocr_source === "screenshot" ? "Read from screenshot" : "Read from pasted message"}
+                        {p.ocr_receiver ? `: paid to ${p.ocr_receiver}` : ""}
+                      </div>
+                    )}
                   </div>
+                  {reviewPayment(p, ownerAccounts).map((warning, index) => (
+                    <Notice key={index} tone={warning.tone}>
+                      {warning.text}
+                    </Notice>
+                  ))}
                   {p.screenshot_path ? (
                     <Screenshot path={p.screenshot_path} large />
                   ) : (

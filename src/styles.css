@@ -416,3 +416,11 @@ textarea.input { min-height: 72px; resize: vertical; }
   padding: 24px 16px;
 }
 .center-screen .card { width: 100%; max-width: 400px; }
+
+/* ---------- OCR ---------- */
+.input-read { border-color: var(--gold); background: #fffdf4; }
+.reading { display: grid; gap: 6px; }
+.reading-row { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.reading-row .btn-link { margin-left: auto; }
+.spinner-sm { width: 16px; height: 16px; border-width: 2px; }
+.candidates { border: 1px solid var(--rule); border-radius: 10px; padding: 0 10px; background: #fff; }

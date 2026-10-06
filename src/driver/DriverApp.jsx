@@ -48,6 +48,10 @@ export default function DriverApp({ token }) {
         p_reference: values.reference,
         p_note: values.note,
         p_screenshot_path: values.screenshot_path,
+        p_ocr_amount: values.ocr_amount,
+        p_ocr_reference: values.ocr_reference,
+        p_ocr_receiver: values.ocr_receiver,
+        p_ocr_source: values.ocr_source,
       });
       if (rpcError) throw rpcError;
       setFlash("Payment sent. It will count once the owner approves it.");

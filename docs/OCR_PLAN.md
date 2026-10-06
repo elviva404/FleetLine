@@ -129,3 +129,27 @@ Both of the last two depend on decisions below.
 Only the extracted fields are stored, not the whole text block. The receiver name and number
 are personal data belonging to the driver and whoever they paid, so keeping the minimum is
 both simpler and safer under Ghana's Data Protection Act.
+
+
+---
+
+## 8. Verified on the owner's real screenshot (2026-10-06)
+
+The real MTN screenshot (354 x 724 px, five messages) was run through the finished pipeline
+in a browser:
+
+| Check | Result |
+|---|---|
+| Payments found | 5 of 5 |
+| Amounts | GH₵ 25, 2,991, 230, 1,000, 60 — all correct |
+| Transaction IDs | 5 of 5 correct |
+| Receiver names | 5 of 5 read |
+| Balances/fees mistaken for the amount | none |
+| Time (engine already downloaded) | ~1.3 s |
+
+Two fixes came out of it:
+- Phone screenshots are small (354 px wide). At that size Tesseract misread one digit
+  (`...722314` as `...727314`). Images under 1100 px wide are now enlarged up to 3x before
+  reading, which fixed it.
+- OCR turns capital I into `!`, `|` or `l` (`NII` became `Nil`). Names are now compared in a
+  loose form so the receiver check still matches the owner.

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { checkReceiver, parseMomoText, pickBestTransaction } from "../src/lib/momo.js";
+import { checkReceiver, parseMomoText, pickBestTransaction, reviewPayment } from "../src/lib/momo.js";
 
 // Real MTN MoMo messages supplied by the owner (names kept as received).
 const MTN_SCREENSHOT = `
@@ -111,4 +111,38 @@ test("matches the owner by number however it is written", () => {
 test("ignores empty or unrelated text", () => {
   assert.deepEqual(parseMomoText(""), []);
   assert.deepEqual(parseMomoText("Hello, are you coming today?"), []);
+});
+
+test("warns the owner when typed details differ from the screenshot", () => {
+  const accounts = ["Elikem Savie", "0249409007"];
+
+  assert.deepEqual(
+    reviewPayment({ amount: 1000, reference: "90944742547", ocr_source: "screenshot", ocr_amount: 1000, ocr_reference: "90944742547", ocr_receiver: "ELIKEM SAVIE" }, accounts),
+    []
+  );
+
+  const edited = reviewPayment(
+    { amount: 1000, reference: "90944742547", ocr_source: "screenshot", ocr_amount: 100, ocr_reference: "90944742547", ocr_receiver: "ELIKEM SAVIE" },
+    accounts
+  );
+  assert.equal(edited.length, 1);
+  assert.match(edited[0].text, /GH₵ 100\.00, driver entered GH₵ 1000\.00/);
+
+  const wrongPerson = reviewPayment(
+    { amount: 1000, reference: "90944742547", ocr_source: "screenshot", ocr_amount: 1000, ocr_reference: "90944742547", ocr_receiver: "GEORGINA BESAVI" },
+    accounts
+  );
+  assert.equal(wrongPerson.length, 1);
+  assert.match(wrongPerson[0].text, /not one of your MoMo accounts/);
+
+  // Typed by hand with no screenshot: nothing to compare, so no warnings.
+  assert.deepEqual(reviewPayment({ amount: 1000, reference: "x", ocr_source: null }, accounts), []);
+});
+
+test("matches the owner's name despite OCR letter mix-ups", () => {
+  const [t] = parseMomoText(
+    "Payment made for GHS 25.00 to JEFFREY CHRISTOPHER Nil LAATE LARTEY Current Balance: GHS 26.27 . Transaction ID: 90943722314"
+  );
+  assert.equal(checkReceiver(t, ["Jeffrey Christopher NII Laate Lartey"]), "match");
+  assert.equal(checkReceiver(t, ["Georgina Besavi"]), "mismatch");
 });
