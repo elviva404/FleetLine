@@ -3,7 +3,9 @@
 export function readRoute() {
   const params = new URLSearchParams(window.location.hash.slice(1));
   const token = params.get("d");
-  return token ? { kind: "driver", token } : { kind: "admin" };
+  if (token) return { kind: "driver", token };
+  if (import.meta.env.DEV && params.get("preview")) return { kind: "preview", name: params.get("preview") };
+  return { kind: "admin" };
 }
 
 export function driverLink(accessToken) {

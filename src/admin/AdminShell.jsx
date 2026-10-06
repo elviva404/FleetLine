@@ -5,9 +5,11 @@ import ApprovalsTab from "./ApprovalsTab.jsx";
 import CarsTab from "./CarsTab.jsx";
 import DriversTab from "./DriversTab.jsx";
 import FinanceTab from "./FinanceTab.jsx";
+import OverviewTab from "./OverviewTab.jsx";
 import SettingsTab from "./SettingsTab.jsx";
 
 const TABS = [
+  { id: "overview", label: "Home" },
   { id: "drivers", label: "Drivers" },
   { id: "approvals", label: "Approvals" },
   { id: "cars", label: "Cars" },
@@ -16,7 +18,7 @@ const TABS = [
 ];
 
 export default function AdminShell({ session }) {
-  const [tab, setTab] = useState("drivers");
+  const [tab, setTab] = useState("overview");
   const [pendingCount, setPendingCount] = useState(0);
   const [countVersion, setCountVersion] = useState(0);
   const refreshCount = () => setCountVersion((v) => v + 1);
@@ -50,6 +52,7 @@ export default function AdminShell({ session }) {
           ))}
         </nav>
 
+        {tab === "overview" && <OverviewTab />}
         {tab === "drivers" && <DriversTab onChanged={refreshCount} />}
         {tab === "approvals" && <ApprovalsTab onChanged={refreshCount} />}
         {tab === "cars" && <CarsTab />}
