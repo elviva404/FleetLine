@@ -3,6 +3,7 @@ import { formatDate, formatMoney } from "../lib/format.js";
 import { supabase } from "../lib/supabase.js";
 import { must, useLoad } from "../lib/useLoad.js";
 import { Badge, Button, Card, Empty, Loading, Money, Notice } from "../ui.jsx";
+import CarDetail from "./CarDetail.jsx";
 import { VehicleFormSheet } from "./forms.jsx";
 
 function carStatus(vehicle) {
@@ -24,7 +25,20 @@ export default function CarsTab() {
       ),
     []
   );
-  const [editing, setEditing] = useState(null); // null | "new" | vehicle
+  const [editing, setEditing] = useState(null); // null | "new"
+  const [selectedId, setSelectedId] = useState(null);
+
+  if (selectedId) {
+    return (
+      <CarDetail
+        vehicleId={selectedId}
+        onBack={() => {
+          setSelectedId(null);
+          reload();
+        }}
+      />
+    );
+  }
 
   if (error && !vehicles) return <Notice tone="red">{error}</Notice>;
   if (!vehicles) return <Loading />;
@@ -46,7 +60,7 @@ export default function CarsTab() {
             {vehicles.map((v) => {
               const status = carStatus(v);
               return (
-                <li key={v.id} className="ledger-row clickable" onClick={() => setEditing(v)}>
+                <li key={v.id} className="ledger-row clickable" onClick={() => setSelectedId(v.id)}>
                   <div className="ledger-main">
                     <div className="ledger-title">{v.make_model}</div>
                     <div className="ledger-meta">
@@ -65,11 +79,7 @@ export default function CarsTab() {
         )}
       </Card>
       {editing && (
-        <VehicleFormSheet
-          vehicle={editing === "new" ? null : editing}
-          onClose={() => setEditing(null)}
-          onSaved={reload}
-        />
+        <VehicleFormSheet vehicle={null} onClose={() => setEditing(null)} onSaved={reload} />
       )}
     </>
   );

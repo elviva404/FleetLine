@@ -444,3 +444,180 @@ function DeleteVehicleButton({ vehicle, onDeleted, onClose }) {
     </>
   );
 }
+
+export function MaintenanceSheet({ vehicle, serviceTypes, onClose, onSaved }) {
+  const [serviceTypeId, setServiceTypeId] = useState(serviceTypes[0]?.id ?? "");
+  const [performedOn, setPerformedOn] = useState(todayAccra());
+  const [ownerCost, setOwnerCost] = useState("");
+  const [note, setNote] = useState("");
+
+  const { busy, error, handleSubmit } = useSubmit(async () => {
+    await must(
+      supabase.from("maintenance_logs").insert({
+        vehicle_id: vehicle.id,
+        service_type_id: serviceTypeId,
+        performed_on: performedOn,
+        owner_cost: Number(ownerCost || 0),
+        note: note.trim() || null,
+      })
+    );
+    onSaved?.();
+  }, onClose);
+
+  return (
+    <Sheet title="Log a service" onClose={onClose}>
+      <form className="form" onSubmit={handleSubmit}>
+        <Field label="Service">
+          <select className="input" required value={serviceTypeId} onChange={(e) => setServiceTypeId(e.target.value)}>
+            {serviceTypes.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <div className="form-grid">
+          <Field label="Date done">
+            <input className="input" type="date" required max={todayAccra()} value={performedOn} onChange={(e) => setPerformedOn(e.target.value)} />
+          </Field>
+          <Field label="What you spent (GH₵)" hint="Leave at 0 if the driver paid it all.">
+            <input {...moneyInput} min="0" placeholder="0" value={ownerCost} onChange={(e) => setOwnerCost(e.target.value)} />
+          </Field>
+        </div>
+        <Field label="Note (optional)">
+          <input className="input" value={note} onChange={(e) => setNote(e.target.value)} />
+        </Field>
+        <Footer busy={busy} error={error} label="Save service" />
+      </form>
+    </Sheet>
+  );
+}
+
+export function VehicleCostSheet({ vehicle, onClose, onSaved }) {
+  const [category, setCategory] = useState("insurance");
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(todayAccra());
+  const [note, setNote] = useState("");
+
+  const { busy, error, handleSubmit } = useSubmit(async () => {
+    await must(
+      supabase.from("vehicle_costs").insert({
+        vehicle_id: vehicle.id,
+        category,
+        amount: Number(amount),
+        date,
+        note: note.trim() || null,
+      })
+    );
+    onSaved?.();
+  }, onClose);
+
+  return (
+    <Sheet title="Add a cost" onClose={onClose}>
+      <form className="form" onSubmit={handleSubmit}>
+        <Notice tone="muted">Money you spent on this car. It counts against the car's profit.</Notice>
+        <Field label="What for">
+          <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="insurance">Insurance</option>
+            <option value="roadworthy">Roadworthy</option>
+            <option value="registration">Registration</option>
+            <option value="repair">Repair</option>
+            <option value="other">Other</option>
+          </select>
+        </Field>
+        <div className="form-grid">
+          <Field label="Amount (GH₵)">
+            <input {...moneyInput} min="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} />
+          </Field>
+          <Field label="Date">
+            <input className="input" type="date" required max={todayAccra()} value={date} onChange={(e) => setDate(e.target.value)} />
+          </Field>
+        </div>
+        <Field label="Note (optional)">
+          <input className="input" value={note} onChange={(e) => setNote(e.target.value)} />
+        </Field>
+        <Footer busy={busy} error={error} label="Add cost" />
+      </form>
+    </Sheet>
+  );
+}
+
+// How often a service is due on this car, when it differs from the usual interval.
+export function IntervalSheet({ vehicle, service, onClose, onSaved }) {
+  const [days, setDays] = useState(String(service.interval_days));
+
+  const { busy, error, handleSubmit } = useSubmit(async () => {
+    await must(
+      supabase.from("vehicle_service_intervals").upsert(
+        { vehicle_id: vehicle.id, service_type_id: service.service_type_id, interval_days: Number(days) },
+        { onConflict: "vehicle_id,service_type_id" }
+      )
+    );
+    onSaved?.();
+  }, onClose);
+
+  async function useDefault() {
+    await supabase
+      .from("vehicle_service_intervals")
+      .delete()
+      .eq("vehicle_id", vehicle.id)
+      .eq("service_type_id", service.service_type_id);
+    onSaved?.();
+    onClose();
+  }
+
+  return (
+    <Sheet title={`${service.service_name} on this car`} onClose={onClose}>
+      <form className="form" onSubmit={handleSubmit}>
+        <Field label="Due every (days)" hint="Only for this car. Other cars keep the usual interval.">
+          <input className="input" type="number" min="1" required value={days} onChange={(e) => setDays(e.target.value)} />
+        </Field>
+        <Footer busy={busy} error={error} label="Save interval" />
+        <Button type="button" variant="ghost" onClick={useDefault}>
+          Use the usual interval
+        </Button>
+      </form>
+    </Sheet>
+  );
+}
+
+export function ServiceTypeSheet({ serviceType, onClose, onSaved }) {
+  const [name, setName] = useState(serviceType?.name ?? "");
+  const [days, setDays] = useState(serviceType ? String(serviceType.default_interval_days) : "30");
+
+  const { busy, error, handleSubmit } = useSubmit(async () => {
+    const values = { name: name.trim(), default_interval_days: Number(days) };
+    await must(
+      serviceType
+        ? supabase.from("service_types").update(values).eq("id", serviceType.id)
+        : supabase.from("service_types").insert(values)
+    );
+    onSaved?.();
+  }, onClose);
+
+  async function archive() {
+    if (!window.confirm(`Stop tracking ${serviceType.name}? Past records are kept.`)) return;
+    await supabase.from("service_types").update({ archived: true }).eq("id", serviceType.id);
+    onSaved?.();
+    onClose();
+  }
+
+  return (
+    <Sheet title={serviceType ? "Edit service" : "Add a service"} onClose={onClose}>
+      <form className="form" onSubmit={handleSubmit}>
+        <Field label="Name">
+          <input className="input" required placeholder="e.g. Oil change" value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Field label="Due every (days)" hint="The usual interval. You can change it per car later.">
+          <input className="input" type="number" min="1" required value={days} onChange={(e) => setDays(e.target.value)} />
+        </Field>
+        <Footer busy={busy} error={error} label={serviceType ? "Save" : "Add service"} />
+        {serviceType && (
+          <Button type="button" variant="danger" onClick={archive}>
+            Stop tracking this
+          </Button>
+        )}
+      </form>
+    </Sheet>
+  );
+}

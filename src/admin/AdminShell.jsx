@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase.js";
-import { Button, Card, Empty, Masthead, Page } from "../ui.jsx";
+import { Button, Masthead, Page } from "../ui.jsx";
 import ApprovalsTab from "./ApprovalsTab.jsx";
 import CarsTab from "./CarsTab.jsx";
 import DriversTab from "./DriversTab.jsx";
+import FinanceTab from "./FinanceTab.jsx";
 import SettingsTab from "./SettingsTab.jsx";
 
 const TABS = [
@@ -52,11 +53,7 @@ export default function AdminShell({ session }) {
         {tab === "drivers" && <DriversTab onChanged={refreshCount} />}
         {tab === "approvals" && <ApprovalsTab onChanged={refreshCount} />}
         {tab === "cars" && <CarsTab />}
-        {tab === "finance" && (
-          <Card title="Finance">
-            <Empty>Not built yet.</Empty>
-          </Card>
-        )}
+        {tab === "finance" && <FinanceTab />}
         {tab === "settings" && <SettingsTab />}
       </Page>
     </>

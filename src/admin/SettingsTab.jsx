@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { errorMessage, supabase } from "../lib/supabase.js";
-import { Button, Card, Field, Loading, Notice } from "../ui.jsx";
+import { must, useLoad } from "../lib/useLoad.js";
+import { ServiceTypeSheet } from "./forms.jsx";
+import { Badge, Button, Card, Empty, Field, Loading, Notice } from "../ui.jsx";
 
 export default function SettingsTab() {
   const [form, setForm] = useState(null);
@@ -46,6 +48,7 @@ export default function SettingsTab() {
   if (!form) return status.text ? <Notice tone="red">{status.text}</Notice> : <Loading />;
 
   return (
+    <>
     <Card title="Settings">
       <form className="form" onSubmit={handleSubmit}>
         <Field label="Weekly installment (GH₵)" hint="Same for every driver. Used to work out whether a driver is on schedule.">
@@ -90,5 +93,54 @@ export default function SettingsTab() {
         </Button>
       </form>
     </Card>
+    <ServiceTypesCard />
+    </>
+  );
+}
+
+function ServiceTypesCard() {
+  const { data: types, error, reload } = useLoad(
+    () => must(supabase.from("service_types").select("*").eq("archived", false).order("name")),
+    []
+  );
+  const [editing, setEditing] = useState(null); // null | "new" | serviceType
+
+  return (
+    <>
+      <Card
+        title="Services to track"
+        aside={
+          <Button className="btn-sm" onClick={() => setEditing("new")}>
+            + Add service
+          </Button>
+        }
+      >
+        {error && <Notice tone="red">{error}</Notice>}
+        {!types && !error && <Loading />}
+        {types && types.length === 0 && <Empty>Nothing tracked yet. Add one, e.g. Oil change every 30 days.</Empty>}
+        {types && types.length > 0 && (
+          <ul className="ledger">
+            {types.map((t) => (
+              <li key={t.id} className="ledger-row clickable" onClick={() => setEditing(t)}>
+                <div className="ledger-main">
+                  <div className="ledger-title">{t.name}</div>
+                  <div className="ledger-meta">Due every {t.default_interval_days} days</div>
+                </div>
+                <div className="ledger-side">
+                  <Badge tone="muted">Edit</Badge>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+      {editing && (
+        <ServiceTypeSheet
+          serviceType={editing === "new" ? null : editing}
+          onClose={() => setEditing(null)}
+          onSaved={reload}
+        />
+      )}
+    </>
   );
 }
