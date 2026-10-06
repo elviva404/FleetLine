@@ -27,6 +27,9 @@ export function errorMessage(error) {
   if (message === "Failed to fetch" || /network|load failed/i.test(message)) {
     return "No connection. Check your internet and try again.";
   }
+  if (error.code === "23503") {
+    return "This car still has driver history. Delete that driver first, or keep the car.";
+  }
   if (error.code === "23505") {
     const match = Object.keys(CONSTRAINT_MESSAGES).find((name) => message.includes(name));
     if (match) return CONSTRAINT_MESSAGES[match];

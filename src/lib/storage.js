@@ -21,3 +21,9 @@ export async function screenshotUrl(path) {
   urlCache.set(path, { url: data.signedUrl, expires: Date.now() + 50 * 60 * 1000 });
   return data.signedUrl;
 }
+
+// Used when a driver is deleted; missing files are not an error.
+export async function deleteScreenshots(paths) {
+  if (!paths?.length) return;
+  await supabase.storage.from(BUCKET).remove(paths);
+}

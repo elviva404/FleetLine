@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { formatMoney, todayAccra } from "../lib/format.js";
+import { deleteScreenshots } from "../lib/storage.js";
 import { errorMessage, supabase } from "../lib/supabase.js";
 import { must, useLoad } from "../lib/useLoad.js";
 import { Button, Field, Loading, Notice, Sheet } from "../ui.jsx";
@@ -108,6 +109,7 @@ export function VehicleFormSheet({ vehicle, onClose, onSaved }) {
           <textarea className="input" value={form.notes} onChange={set("notes")} />
         </Field>
         <Footer busy={busy} error={error} label={vehicle ? "Save" : "Add car"} />
+        {vehicle && <DeleteVehicleButton vehicle={vehicle} onDeleted={onSaved} onClose={onClose} />}
       </form>
     </Sheet>
   );
@@ -377,5 +379,68 @@ export function AgreementPriceSheet({ agreement, onClose, onSaved }) {
         <Footer busy={busy} error={error} label="Save price" />
       </form>
     </Sheet>
+  );
+}
+
+// Removes a driver and everything about them. For mistakes and test data.
+export function DeleteDriverSheet({ driver, onClose, onDeleted }) {
+  const [typed, setTyped] = useState("");
+  const matches = typed.trim().toLowerCase() === driver.name.trim().toLowerCase();
+
+  const { busy, error, handleSubmit } = useSubmit(async () => {
+    if (!matches) throw new Error("Type the driver's name exactly to confirm.");
+    const result = await must(supabase.rpc("admin_delete_driver", { p_driver_id: driver.id }));
+    await deleteScreenshots(result?.screenshots ?? []);
+    onDeleted?.(result);
+  }, onClose);
+
+  return (
+    <Sheet title={`Delete ${driver.name}`} onClose={onClose}>
+      <form className="form" onSubmit={handleSubmit}>
+        <Notice tone="red">
+          This permanently deletes the driver, their agreements, every payment and deposit, extras, corrections and
+          uploaded screenshots. It cannot be undone, and their link stops working.
+        </Notice>
+        <Notice tone="muted">
+          If this driver really had the car and you are only ending the arrangement, use <strong>Take car back</strong>
+          instead. That keeps the record of what they paid.
+        </Notice>
+        <Field label={`Type "${driver.name}" to confirm`}>
+          <input className="input" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} />
+        </Field>
+        {error && <Notice tone="red">{error}</Notice>}
+        <Button type="submit" variant="danger" disabled={busy || !matches}>
+          {busy ? "Deleting…" : "Delete permanently"}
+        </Button>
+      </form>
+    </Sheet>
+  );
+}
+
+function DeleteVehicleButton({ vehicle, onDeleted, onClose }) {
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function handleDelete() {
+    if (!window.confirm(`Delete ${vehicle.make_model}? This can't be undone.`)) return;
+    setBusy(true);
+    setError("");
+    const { error: deleteError } = await supabase.from("vehicles").delete().eq("id", vehicle.id);
+    setBusy(false);
+    if (deleteError) {
+      setError(errorMessage(deleteError));
+      return;
+    }
+    onDeleted?.();
+    onClose();
+  }
+
+  return (
+    <>
+      {error && <Notice tone="red">{error}</Notice>}
+      <Button type="button" variant="danger" disabled={busy} onClick={handleDelete}>
+        {busy ? "Deleting…" : "Delete car"}
+      </Button>
+    </>
   );
 }

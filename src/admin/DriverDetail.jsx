@@ -10,6 +10,7 @@ import { BackButton, Badge, Button, Card, Empty, Loading, Notice, Sheet } from "
 import {
   AdjustmentSheet,
   AgreementPriceSheet,
+  DeleteDriverSheet,
   DriverFormSheet,
   ExtraSheet,
   RejectSheet,
@@ -240,6 +241,17 @@ export default function DriverDetail({ driverId, onBack, onChanged }) {
         </>
       )}
 
+      <Card title="Danger zone">
+        <div className="stack">
+          <p className="muted small">
+            Deleting removes this driver and every record about them. Use it for test entries and mistakes only.
+          </p>
+          <Button variant="danger" onClick={() => setSheet({ kind: "deleteDriver" })}>
+            Delete {driver.name}
+          </Button>
+        </div>
+      </Card>
+
       {agreements.length > 1 && (
         <Card title="All agreements">
           <ul className="ledger">
@@ -287,6 +299,9 @@ export default function DriverDetail({ driverId, onBack, onChanged }) {
       {sheet?.kind === "reject" && <RejectSheet payment={sheet.payload} onClose={close} onSaved={() => refresh("Payment rejected.")} />}
       {sheet?.kind === "price" && (
         <AgreementPriceSheet agreement={current} onClose={close} onSaved={() => refresh("Price updated.")} />
+      )}
+      {sheet?.kind === "deleteDriver" && (
+        <DeleteDriverSheet driver={driver} onClose={close} onDeleted={onBack} />
       )}
       {sheet?.kind === "terminate" && <TerminateSheet agreement={current} onClose={close} onSaved={() => refresh("Agreement ended.")} />}
     </>
