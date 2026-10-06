@@ -340,3 +340,42 @@ export function TerminateSheet({ agreement, onClose, onSaved }) {
     </Sheet>
   );
 }
+
+// Correcting a mistyped price. The deposit and all payments stay as they are.
+export function AgreementPriceSheet({ agreement, onClose, onSaved }) {
+  const [carPrice, setCarPrice] = useState(String(agreement.car_price));
+  const price = Number(carPrice || 0);
+
+  const { busy, error, handleSubmit } = useSubmit(async () => {
+    if (!(price > 0)) throw new Error("Enter the price to own.");
+    if (price <= Number(agreement.deposit)) {
+      throw new Error(`The price must be more than the ${formatMoney(agreement.deposit)} deposit.`);
+    }
+    await must(supabase.from("agreements").update({ car_price: price }).eq("id", agreement.agreement_id));
+    onSaved?.();
+  }, onClose);
+
+  const extras = Number(agreement.extras_total || 0);
+
+  return (
+    <Sheet title="Change price to own" onClose={onClose}>
+      <form className="form" onSubmit={handleSubmit}>
+        <Notice tone="muted">
+          Use this to fix a mistyped price, or if you agreed a new price with the driver. Payments, the deposit and
+          extras are not affected.
+        </Notice>
+        <Field label="Price to own (GH₵)" hint="What the driver pays in total to own the car, before extras.">
+          <input {...moneyInput} min="1" required value={carPrice} onChange={(e) => setCarPrice(e.target.value)} />
+        </Field>
+        {price > 0 && (
+          <Notice tone="muted">
+            Total to own becomes {formatMoney(price + extras)}
+            {extras ? ` (price plus ${formatMoney(extras)} of extras)` : ""}, and the driver has paid{" "}
+            {formatMoney(agreement.paid)} so far.
+          </Notice>
+        )}
+        <Footer busy={busy} error={error} label="Save price" />
+      </form>
+    </Sheet>
+  );
+}

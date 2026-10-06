@@ -9,6 +9,7 @@ import { must, useLoad } from "../lib/useLoad.js";
 import { BackButton, Badge, Button, Card, Empty, Loading, Notice, Sheet } from "../ui.jsx";
 import {
   AdjustmentSheet,
+  AgreementPriceSheet,
   DriverFormSheet,
   ExtraSheet,
   RejectSheet,
@@ -206,6 +207,7 @@ export default function DriverDetail({ driverId, onBack, onChanged }) {
                 <Button onClick={() => setSheet({ kind: "payment" })}>Record payment</Button>
                 <Button variant="ghost" onClick={() => setSheet({ kind: "extra" })}>Add to total</Button>
                 <Button variant="ghost" onClick={() => setSheet({ kind: "adjust" })}>Correction</Button>
+                <Button variant="ghost" onClick={() => setSheet({ kind: "price" })}>Change price</Button>
               </div>
               <div className="actions" style={{ marginTop: 8 }}>
                 <Button variant="ghost" disabled={current.remaining > 0} onClick={complete}>
@@ -283,6 +285,9 @@ export default function DriverDetail({ driverId, onBack, onChanged }) {
       {sheet?.kind === "extra" && <ExtraSheet agreementId={current.agreement_id} onClose={close} onSaved={() => refresh("Added to total.")} />}
       {sheet?.kind === "adjust" && <AdjustmentSheet agreementId={current.agreement_id} onClose={close} onSaved={() => refresh("Correction saved.")} />}
       {sheet?.kind === "reject" && <RejectSheet payment={sheet.payload} onClose={close} onSaved={() => refresh("Payment rejected.")} />}
+      {sheet?.kind === "price" && (
+        <AgreementPriceSheet agreement={current} onClose={close} onSaved={() => refresh("Price updated.")} />
+      )}
       {sheet?.kind === "terminate" && <TerminateSheet agreement={current} onClose={close} onSaved={() => refresh("Agreement ended.")} />}
     </>
   );
