@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { errorMessage, supabase } from "../lib/supabase.js";
 import { must, useLoad } from "../lib/useLoad.js";
 import { ServiceTypeSheet } from "./forms.jsx";
+import HistoryCard from "./HistoryCard.jsx";
+import PeopleCard from "./PeopleCard.jsx";
 import { Badge, Button, Card, Empty, Field, Loading, Notice } from "../ui.jsx";
 
-export default function SettingsTab() {
+export default function SettingsTab({ session, isOwner }) {
   const [form, setForm] = useState(null);
   const [status, setStatus] = useState({ tone: "", text: "" });
   const [saving, setSaving] = useState(false);
@@ -94,6 +96,8 @@ export default function SettingsTab() {
       </form>
     </Card>
     <ServiceTypesCard />
+    <PeopleCard session={session} isOwner={isOwner} />
+    <HistoryCard />
     </>
   );
 }

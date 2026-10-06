@@ -19,7 +19,7 @@ const TABS = [
   { id: "settings", label: "Settings" },
 ];
 
-export default function AdminShell({ session }) {
+export default function AdminShell({ session, isOwner }) {
   const [tab, setTab] = useState("overview");
   const [pendingCount, setPendingCount] = useState(0);
   const [countVersion, setCountVersion] = useState(0);
@@ -60,7 +60,7 @@ export default function AdminShell({ session }) {
         {tab === "cars" && <CarsTab />}
         {tab === "papers" && <PapersTab />}
         {tab === "finance" && <FinanceTab />}
-        {tab === "settings" && <SettingsTab />}
+        {tab === "settings" && <SettingsTab session={session} isOwner={isOwner} />}
       </Page>
     </>
   );

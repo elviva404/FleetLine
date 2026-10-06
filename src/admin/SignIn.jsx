@@ -11,10 +11,21 @@ export default function SignIn() {
     event.preventDefault();
     setStatus("sending");
     setError("");
+    const address = email.trim();
+
+    // People on the admin list can sign in for the first time without being set
+    // up by hand; everyone else is turned away.
+    const { data: invited } = await supabase.rpc("email_invited", { p_email: address });
+    if (invited === false) {
+      setStatus("idle");
+      setError("This email does not have dashboard access.");
+      return;
+    }
+
     const { error: signInError } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
+      email: address,
       options: {
-        shouldCreateUser: false,
+        shouldCreateUser: invited === true,
         emailRedirectTo: window.location.origin + window.location.pathname,
       },
     });

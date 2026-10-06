@@ -8,6 +8,7 @@ export default function AdminApp() {
   // undefined = still checking, null = signed out
   const [session, setSession] = useState(undefined);
   const [isAdmin, setIsAdmin] = useState(null);
+  const [isOwner, setIsOwner] = useState(false);
   const userId = session?.user?.id;
 
   useEffect(() => {
@@ -22,8 +23,10 @@ export default function AdminApp() {
       return;
     }
     let cancelled = false;
-    supabase.rpc("is_admin").then(({ data, error }) => {
-      if (!cancelled) setIsAdmin(!error && data === true);
+    Promise.all([supabase.rpc("is_admin"), supabase.rpc("is_owner")]).then(([admin, owner]) => {
+      if (cancelled) return;
+      setIsAdmin(!admin.error && admin.data === true);
+      setIsOwner(!owner.error && owner.data === true);
     });
     return () => {
       cancelled = true;
@@ -56,5 +59,5 @@ export default function AdminApp() {
     );
   }
 
-  return <AdminShell session={session} />;
+  return <AdminShell session={session} isOwner={isOwner} />;
 }
